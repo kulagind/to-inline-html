@@ -6,6 +6,9 @@
   "bin": {
     "to-inline-html": "bin/index.js"
   },
+  "publishConfig": {
+    "to-inline-html": "https://www.npmjs.com/package/to-inline-html"
+  },
   "keywords": [
     "html",
     "inline",
