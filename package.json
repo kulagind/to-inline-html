@@ -1,0 +1,24 @@
+{
+  "name": "inline-html",
+  "version": "1.0.0",
+  "description": "Replace links in css/html to inline code",
+  "main": "bin/index.js",
+  "bin": {
+    "inline-html": "bin/index.js"
+  },
+  "keywords": [
+    "html",
+    "inline",
+    "style",
+    "css",
+    "replace",
+    "single",
+    "single",
+    "static"
+  ],
+  "author": "Dmitrii Kulagin (dkulagin.com@gmail.com)",
+  "license": "MIT",
+  "dependencies": {
+    "mime-types": "^2.1.35"
+  }
+}
