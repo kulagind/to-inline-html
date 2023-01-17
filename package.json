@@ -1,10 +1,10 @@
 {
-  "name": "inline-html",
-  "version": "1.0.0",
+  "name": "to-inline-html",
+  "version": "1.0.1",
   "description": "Replace links in css/html to inline code",
   "main": "bin/index.js",
   "bin": {
-    "inline-html": "bin/index.js"
+    "to-inline-html": "bin/index.js"
   },
   "keywords": [
     "html",

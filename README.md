@@ -6,8 +6,8 @@ It replaces links and scripts html files to inline code.
 # How to use
 
 ```
-npm i -g inline-html
-npx inline-html /path/to/source_file.html /path/to/output.html
+npm i -g to-inline-html
+npx to-inline-html /path/to/source_file.html /path/to/output.html
 ```
 where is 
 - <code>/path/to/source_file.html</code> is your path to built project, and 
