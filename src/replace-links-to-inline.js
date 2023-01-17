@@ -1,46 +1,52 @@
 const fs = require('fs');
 const path = require('path');
+const mime = require('mime-types');
 
-export function replaceLinksToInline(filePath) {
+const Red = "\x1b[31m%s\x1b[0m"
+const Green = "\x1b[32m%s\x1b[0m"
+const Yellow = "\x1b[33m%s\x1b[0m"
+const Cyan = "\x1b[36m%s\x1b[0m"
+
+module.exports.Red = Red;
+module.exports.Cyan = Cyan;
+module.exports.Green = Green;
+module.exports.Yellow = Yellow;
+
+module.exports.replaceLinksToInline = async function replaceLinksToInline(filePath) {
     const rootPath = path.dirname(filePath);
 
-    // Replace scripts
     let data = fs.readFileSync(filePath, 'utf8');
 
     if (data) {
-        console.log(`Lets start replacing in ${filePath}`);
+        console.log(Cyan, `Lets start replacing in ${filePath}`);
         const scriptRegex = /<script[^>]*src=["']([^"']+)["'][^>]*>([\s\S]*?)<\/script>/gi;
-        let match;
-        while (match = scriptRegex.exec(data)) {
-            console.log(`Attempt to replace SCRIPT tag to ${match[1]}...`);
+        let allMatches = [...data.matchAll(scriptRegex)];
+        for (const match of allMatches) {
+            console.log(`Replacing SCRIPT ${match[1]}...`);
             const scriptPath = path.resolve(rootPath, match[1]);
-            const script = fs.readFileSync(scriptPath, 'utf8');
+            const script = await readFile(scriptPath);
             if (script) {
-                data = data.replace(match[0], `<script>${script}</script>`);
-                if (!scriptRegex.test(data)) {
-                    console.log(`${match[1]} replaced successfully`);
-                }
+                data = replace(data, match[0], `<script defer>${script}</script>`);
+                console.log(Green, `${match[1]} replaced successfully`);
             } else {
-                console.log(`WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
+                console.log(Red, `WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
             }
         }
 
-        // Replace tagged styles and fonts
         const linkRegex = /<link[^>]*href=["']([^"']+)["'][^>]*>/gi;
-        match = undefined;
-
-        while (match = linkRegex.exec(data)) {
-            console.log(`Attempt to replace LINK tag to ${match[1]}...`);
+        allMatches = data.matchAll(linkRegex);
+        for (const match of allMatches) {
+            console.log(`Replacing LINK ${match[1]}...`);
             switch (true) {
                 case match[1].endsWith('.css'):
                     const cssPath = path.resolve(rootPath, match[1]);
-                    let cssContent = fs.readFileSync(cssPath, 'utf8');
+                    let cssContent = await readFile(cssPath);
                     if (cssContent) {
-                        cssContent = replaceUrlInCss(cssContent, cssPath);
-                        data = data.replace(match[0], `<style>${cssContent}</style>`);
-                        console.log(`${match[1]} replaced successfully`);
+                        cssContent = await replaceUrlInCss(cssContent, cssPath);
+                        data = replace(data, match[0], `<style>${cssContent}</style>`);
+                        console.log(Green, `${match[1]} replaced successfully`);
                     } else {
-                        console.log(`WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
+                        console.log(Red, `WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
                     }
                     break;
                 case match[1].endsWith('woff') ||
@@ -49,44 +55,65 @@ export function replaceLinksToInline(filePath) {
                 match[1].endsWith('ttf') ||
                 match[1].endsWith('svg'):
                     const fontPath = path.resolve(rootPath, match[1]);
-                    const fontContent = fs.readFileSync(fontPath);
+                    const fontContent = await readFile(fontPath);
                     if (fontContent) {
                         const fontContentEncoded = fontContent.toString('base64');
                         const fontType = path.extname(match[1]).substring(1);
                         const fontUrl = `data:application/x-${fontType};base64,${fontContentEncoded}`;
-                        data = data.replace(match[0], `<link href="${fontUrl}" rel="stylesheet">`);
-                        console.log(`${match[1]} replaced successfully`);
+                        data = replace(data, match[0], `<link href="${fontUrl}" rel="stylesheet">`);
+                        console.log(Green, `${match[1]} replaced successfully`);
                     } else {
-                        console.log(`WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
+                        console.log(Red, `WARNING: File ${match[1]} wasn't found. We looked for it in ${rootPath}/${match[1]}`);
                     }
                     break;
                 default:
+                    console.log(Red, `WARNING: Instruction for ${match[1]} not found!`);
                     break;
             }
         }
-        console.log('Links replaced successfully');
         return data;
     } else {
-        console.log(`WARNING: Html source file wasn't found in ${filePath}`);
+        console.log(Red, `WARNING: Html source file wasn't found in ${filePath}`);
     }
 }
 
-function replaceUrlInCss(sourceCss, cssPath) {
-    const cssRegex = /url\((['"]?)([^'"]+)\1\)/gi;
-    let match;
+async function replaceUrlInCss(sourceCss, cssPath) {
+    const cssRegex = /url\(([^)]+)\)/gi;
+    const allMatches = sourceCss.matchAll(cssRegex);
     let result = sourceCss;
-    while ((match = cssRegex.exec(sourceCss)) !== null) {
-        console.log(`Attempt to replace URL ${match[2]} in CSS ${cssPath} `);
-        const assetPath = path.resolve(path.dirname(cssPath), match[2]);
-        const assetContent = fs.readFileSync(assetPath, 'utf8');
+    for (const match of allMatches) {
+        match[1] = match[1].split('?#')[0];
+        console.log(`Replacing URL ${match[1]} in CSS ${cssPath}...`);
+        const assetPath = path.resolve(path.dirname(cssPath), match[1]);
+        const assetBuffer = fs.readFileSync(assetPath);
+        const assetContent = convertBufferToBase64(assetBuffer);
         if (assetContent) {
-            const assetDataUrl = `data:${mime.getType(path.extname(assetPath))};charset=utf-8,${encodeURIComponent(assetContent)}`;
-            result = sourceCss.replace(match[0], `url(${assetDataUrl})`);
-            console.log(`${match[2]} replaced successfully`);
+            let mimeType = mime.lookup(path.extname(assetPath));
+            let assetDataUrl = `data:${mimeType};base64,${assetContent}`;
+            result = replace(result, match[0], `url(${assetDataUrl})`);
+            console.log(Green, `${match[1]} replaced successfully`);
         } else {
-            console.log(`WARNING: File ${match[2]} wasn't found. We looked for it in ${assetPath}`);
+            console.log(Red, `WARNING: File ${match[1]} wasn't found. We looked for it in ${assetPath}`);
         }
     }
-    console.log('Urls in css files replaced successfully');
+    console.log(Green, 'Urls in css files replaced successfully');
     return result;
+}
+
+function convertBufferToBase64(content) {
+    return Buffer.from(content).toString('base64');
+}
+
+async function readFile(path) {
+    return new Promise((resolve, reject) => {
+        let data = '';
+        const readStream = fs.createReadStream(path, 'utf-8');
+        readStream.on('error', (error) => reject(error.message));
+        readStream.on('data', (chunk) => data += chunk);
+        readStream.on('end', () => resolve(data));
+    });
+}
+
+function replace(input, source, target) {
+    return input.split(source).join(target);
 }

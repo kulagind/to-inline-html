@@ -4,7 +4,7 @@
   "description": "Replace links in css/html to inline code",
   "main": "bin/index.js",
   "bin": {
-    "to-inline-html": "index.js"
+    "to-inline-html": "bin/index.js"
   },
   "keywords": [
     "html",
@@ -16,5 +16,8 @@
     "static"
   ],
   "author": "Dmitrii Kulagin (dkulagin.com@gmail.com)",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "mime-types": "^2.1.35"
+  }
 }
