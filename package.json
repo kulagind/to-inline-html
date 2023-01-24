@@ -1,6 +1,6 @@
 {
   "name": "to-inline-html",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Replace links in css/html to inline code",
   "main": "bin/index.js",
   "bin": {
